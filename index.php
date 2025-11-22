@@ -179,7 +179,6 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
                 <a href="#services" class="hover:text-gold-400 text-sm font-medium transition">Hizmetler</a>
                 <a href="#gallery" class="hover:text-gold-400 text-sm font-medium transition">Galeri</a>
                 <a href="#booking" class="bg-gold-500 text-black font-bold px-6 py-2 rounded hover:bg-white transition shadow-lg shadow-gold-500/20">Randevu Al</a>
-                <a href="admin/" class="text-gray-500 hover:text-white text-xs uppercase tracking-widest border border-gray-700 px-3 py-1 rounded"><i class="fas fa-lock mr-1"></i> Yönetim</a>
             </div>
 
             <div class="md:hidden flex items-center">
