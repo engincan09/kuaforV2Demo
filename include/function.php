@@ -1,269 +1,241 @@
 <?php
 // AYAR FONKSİYONLARI
-
-function getSetting($key) {
+function getSetting($key)
+{
     global $conn;
     if (!$conn) return "";
     try {
         $stmt = $conn->prepare("SELECT setting_value FROM Settings WHERE setting_key = ?");
         $stmt->execute([$key]);
-        return $stmt->fetchColumn() ?: ""; 
+        return $stmt->fetchColumn() ?: "";
     } catch (PDOException $e) {
         return "";
     }
 }
 
-function updateSiteSettings($postData, $filesData = null) {
+function updateSiteSettings($postData, $filesData = null)
+{
     global $conn;
-    
-    $settings = [
-        'hero_title', 'hero_subtitle', 'about_title', 'about_text',
-        'site_title', 'site_description', 'site_keywords', 'site_logo_text',
-        'theme_color_primary', 'theme_color_secondary'
-    ];
-
+    $settings = ['hero_title', 'hero_subtitle', 'about_title', 'about_text', 'site_title', 'site_description', 'site_keywords', 'site_logo_text', 'theme_color_primary', 'theme_color_secondary'];
     try {
-        $sql = "INSERT INTO Settings (setting_key, setting_value) VALUES (?, ?) 
-                ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)";
+        $sql = "INSERT INTO Settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)";
         $stmt = $conn->prepare($sql);
-
         foreach ($settings as $key) {
-            if (isset($postData[$key])) {
-                $stmt->execute([$key, $postData[$key]]);
-            }
+            if (isset($postData[$key])) $stmt->execute([$key, $postData[$key]]);
         }
 
-        // 1. Favicon Yükleme
-        if (isset($filesData['site_favicon']) && $filesData['site_favicon']['error'] == 0) {
-            $allowed = ['ico', 'png', 'jpg', 'jpeg', 'svg'];
-            $ext = strtolower(pathinfo($filesData['site_favicon']['name'], PATHINFO_EXTENSION));
-            
-            if (in_array($ext, $allowed)) {
-                $uploadDir = __DIR__ . '/../uploads/'; 
-                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-                
-                $fileName = 'favicon.' . $ext;
-                $targetPath = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($filesData['site_favicon']['tmp_name'], $targetPath)) {
-                    $dbPath = 'uploads/' . $fileName . '?v=' . time();
-                    $stmt->execute(['site_favicon', $dbPath]);
+        // Dosya yüklemeleri
+        $uploads = [
+            'site_favicon' => 'favicon',
+            'about_image' => 'about_bg_' . time(),
+            'hero_image' => 'hero_bg_' . time()
+        ];
+
+        foreach ($uploads as $inputName => $prefix) {
+            if (isset($filesData[$inputName]) && $filesData[$inputName]['error'] == 0) {
+                $ext = strtolower(pathinfo($filesData[$inputName]['name'], PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'jpeg', 'png', 'svg', 'ico', 'webp'])) {
+                    $uploadDir = __DIR__ . '/../uploads/';
+                    if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                    $fileName = $prefix . '.' . $ext;
+                    if (move_uploaded_file($filesData[$inputName]['tmp_name'], $uploadDir . $fileName)) {
+                        $stmt->execute([$inputName, 'uploads/' . $fileName]);
+                    }
                 }
             }
         }
-
-        // 2. Hakkımızda Resmi Yükleme
-        if (isset($filesData['about_image']) && $filesData['about_image']['error'] == 0) {
-            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-            $ext = strtolower(pathinfo($filesData['about_image']['name'], PATHINFO_EXTENSION));
-            
-            if (in_array($ext, $allowed)) {
-                $uploadDir = __DIR__ . '/../uploads/'; 
-                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-                
-                $fileName = 'about_bg_' . time() . '.' . $ext;
-                $targetPath = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($filesData['about_image']['tmp_name'], $targetPath)) {
-                    $dbPath = 'uploads/' . $fileName;
-                    $stmt->execute(['about_image', $dbPath]);
-                }
-            }
-        }
-
-        // 3. Hero (Ana Sayfa) Resmi Yükleme (YENİ EKLENDİ)
-        if (isset($filesData['hero_image']) && $filesData['hero_image']['error'] == 0) {
-            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-            $ext = strtolower(pathinfo($filesData['hero_image']['name'], PATHINFO_EXTENSION));
-            
-            if (in_array($ext, $allowed)) {
-                $uploadDir = __DIR__ . '/../uploads/'; 
-                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-                
-                $fileName = 'hero_bg_' . time() . '.' . $ext;
-                $targetPath = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($filesData['hero_image']['tmp_name'], $targetPath)) {
-                    $dbPath = 'uploads/' . $fileName;
-                    $stmt->execute(['hero_image', $dbPath]);
-                }
-            }
-        }
-
-        return ["status" => true, "message" => "Tüm ayarlar başarıyla güncellendi."];
+        return ["status" => true, "message" => "Ayarlar güncellendi."];
     } catch (PDOException $e) {
         return ["status" => false, "message" => "Hata: " . $e->getMessage()];
     }
 }
 
-// ... (Diğer tüm fonksiyonlar aynı kalacak)
-// (fetchServices, addService, deleteService, fetchGallery, addGalleryImage, deleteGalleryImage, fetchAppointments, updateAppointmentStatus, checkStaffAvailability, getDailyAvailability, createAppointment, checkAdminLogin, fetchUsers, fetchStaff, addUser, deleteUser, updateUserPassword)
-/**
- * HİZMET FONKSİYONLARI
- */
-function fetchServices() {
+// HİZMETLER
+function fetchServices()
+{
     global $conn;
     if (!$conn) return [];
-    try {
-        $stmt = $conn->query("SELECT * FROM Services");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        return [];
-    }
+    return $conn->query("SELECT * FROM Services")->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function addService($name, $price, $desc) {
+function addService($name, $price, $desc, $duration)
+{
     global $conn;
     try {
-        $stmt = $conn->prepare("INSERT INTO Services (name, price, description) VALUES (?, ?, ?)");
-        $result = $stmt->execute([$name, $price, $desc]);
-        return $result ? ["status" => true, "message" => "Hizmet eklendi."] : ["status" => false, "message" => "Eklenemedi."];
+        $stmt = $conn->prepare("INSERT INTO Services (name, price, description, duration) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$name, $price, $desc, $duration]);
+        return ["status" => true, "message" => "Hizmet eklendi."];
     } catch (PDOException $e) {
         return ["status" => false, "message" => "Hata: " . $e->getMessage()];
     }
 }
 
-function deleteService($id) {
+function deleteService($id)
+{
     global $conn;
-    try {
-        $stmt = $conn->prepare("DELETE FROM Services WHERE id = ?");
-        $stmt->execute([$id]);
-        return ["status" => true, "message" => "Hizmet silindi."];
-    } catch (PDOException $e) {
-        return ["status" => false, "message" => "Silinemedi."];
-    }
+    $conn->prepare("DELETE FROM Services WHERE id = ?")->execute([$id]);
 }
 
-/**
- * GALERİ & RANDEVU FONKSİYONLARI
- */
-function fetchGallery() {
+// GALERİ
+function fetchGallery()
+{
     global $conn;
-    if (!$conn) return [];
-    try {
-        $stmt = $conn->query("SELECT * FROM Gallery ORDER BY uploaded_at DESC");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        return [];
-    }
+    return $conn->query("SELECT * FROM Gallery ORDER BY uploaded_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function addGalleryImage($fileData) {
+function addGalleryImage($fileData)
+{
     global $conn;
-    if ($fileData['error'] != 0) return ["status" => false, "message" => "Dosya yükleme hatası."];
-
-    $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+    if ($fileData['error'] != 0) return ["status" => false, "message" => "Dosya hatası."];
     $ext = strtolower(pathinfo($fileData['name'], PATHINFO_EXTENSION));
-
-    if (!in_array($ext, $allowed)) return ["status" => false, "message" => "Geçersiz dosya formatı."];
-
-    $uploadDir = __DIR__ . '/../uploads/gallery/'; 
+    $uploadDir = __DIR__ . '/../uploads/gallery/';
     if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-
     $fileName = uniqid() . '.' . $ext;
-    $targetPath = $uploadDir . $fileName;
+    if (move_uploaded_file($fileData['tmp_name'], $uploadDir . $fileName)) {
+        $conn->prepare("INSERT INTO Gallery (image_url) VALUES (?)")->execute(['uploads/gallery/' . $fileName]);
+        return ["status" => true, "message" => "Resim eklendi."];
+    }
+    return ["status" => false, "message" => "Yükleme başarısız."];
+}
 
-    if (move_uploaded_file($fileData['tmp_name'], $targetPath)) {
-        try {
-            $dbPath = 'uploads/gallery/' . $fileName;
-            $stmt = $conn->prepare("INSERT INTO Gallery (image_url) VALUES (?)");
-            $stmt->execute([$dbPath]);
-            return ["status" => true, "message" => "Resim galeriye eklendi."];
-        } catch (PDOException $e) {
-            return ["status" => false, "message" => "Veritabanı hatası."];
+function deleteGalleryImage($id)
+{
+    global $conn;
+    $stmt = $conn->prepare("SELECT image_url FROM Gallery WHERE id = ?");
+    $stmt->execute([$id]);
+    $img = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($img) {
+        if (file_exists(__DIR__ . '/../' . $img['image_url'])) unlink(__DIR__ . '/../' . $img['image_url']);
+        $conn->prepare("DELETE FROM Gallery WHERE id = ?")->execute([$id]);
+        return ["status" => true, "message" => "Silindi."];
+    }
+    return ["status" => false, "message" => "Bulunamadı."];
+}
+
+// RANDEVULAR & PERSONEL
+function fetchAppointments()
+{
+    global $conn;
+    $sql = "SELECT a.*, u.username as staff_name, s.name as service_name, s.duration 
+            FROM Appointments a 
+            LEFT JOIN Users u ON a.staff_id = u.id 
+            LEFT JOIN Services s ON a.service_id = s.id
+            ORDER BY a.appointment_date DESC, a.appointment_time DESC";
+    return $conn->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function updateAppointmentStatus($id, $status)
+{
+    global $conn;
+    $conn->prepare("UPDATE Appointments SET status = ? WHERE id = ?")->execute([$status, $id]);
+}
+
+// --- MÜSAİTLİK KONTROLÜ (YENİ MANTIK: SÜRE BAZLI ÇAKIŞMA) ---
+function checkTimeOverlap($staffId, $date, $newStartTime, $newDurationMinutes)
+{
+    global $conn;
+
+    // Personel seçilmediyse genel randevu kabul et
+    if (empty($staffId)) return false;
+
+    // 1. O personelin o tarihteki tüm aktif randevularını çek (Süresiyle birlikte)
+    $sql = "SELECT a.appointment_time, s.duration 
+            FROM Appointments a
+            LEFT JOIN Services s ON a.service_id = s.id
+            WHERE a.staff_id = ? 
+            AND a.appointment_date = ? 
+            AND a.status IN ('Pending', 'Approved')";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([$staffId, $date]);
+    $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Yeni randevunun başlangıç ve bitiş zaman damgaları
+    $newStartTimestamp = strtotime("$date $newStartTime");
+    $newEndTimestamp = $newStartTimestamp + ($newDurationMinutes * 60);
+
+    foreach ($appointments as $app) {
+        // Mevcut randevunun başlangıç ve bitişi
+        $existingStartTimestamp = strtotime("$date " . $app['appointment_time']);
+        // Eğer hizmet süresi yoksa varsayılan 30 dk al
+        $existingDuration = $app['duration'] ? $app['duration'] : 30;
+        $existingEndTimestamp = $existingStartTimestamp + ($existingDuration * 60);
+
+        // ÇAKIŞMA MANTIĞI:
+        // Yeni randevu bitişi mevcut başlangıçtan büyükse VE yeni başlangıç mevcut bitişten küçükse çakışma vardır.
+        if ($newStartTimestamp < $existingEndTimestamp && $newEndTimestamp > $existingStartTimestamp) {
+            return true; // ÇAKIŞMA VAR!
         }
     }
-    return ["status" => false, "message" => "Dosya taşınamadı."];
+
+    return false; // Çakışma yok, uygun.
 }
 
-function deleteGalleryImage($id) {
+// MODAL İÇİN GÜNLÜK DURUM (30 Dk'lık dilimler halinde)
+function getDailyAvailability($date)
+{
     global $conn;
-    try {
-        $stmt = $conn->prepare("SELECT image_url FROM Gallery WHERE id = ?");
-        $stmt->execute([$id]);
-        $img = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($img) {
-            $filePath = __DIR__ . '/../' . $img['image_url'];
-            if (file_exists($filePath)) unlink($filePath);
-
-            $del = $conn->prepare("DELETE FROM Gallery WHERE id = ?");
-            $del->execute([$id]);
-            return ["status" => true, "message" => "Resim silindi."];
-        }
-        return ["status" => false, "message" => "Resim bulunamadı."];
-    } catch (PDOException $e) {
-        return ["status" => false, "message" => "Silinemedi."];
+    $slots = [];
+    // 09:00'dan 20:00'a kadar 30'ar dakika
+    $start = strtotime('09:00');
+    $end = strtotime('20:00');
+    while ($start < $end) {
+        $slots[] = date('H:i', $start);
+        $start = strtotime('+30 minutes', $start);
     }
-}
 
-function fetchAppointments() {
-    global $conn;
-    if (!$conn) return [];
-    try {
-        $sql = "SELECT a.*, u.username as staff_name, s.name as service_name 
-                FROM Appointments a 
-                LEFT JOIN Users u ON a.staff_id = u.id 
-                LEFT JOIN Services s ON a.service_id = s.id
-                ORDER BY a.appointment_date DESC, a.appointment_time DESC";
-        $stmt = $conn->query($sql);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        return [];
-    }
-}
-
-function updateAppointmentStatus($id, $status) {
-    global $conn;
-    try {
-        $allowed = ['Pending', 'Approved', 'Cancelled', 'Completed'];
-        if (!in_array($status, $allowed)) return ["status" => false, "message" => "Geçersiz durum."];
-
-        $stmt = $conn->prepare("UPDATE Appointments SET status = ? WHERE id = ?");
-        $stmt->execute([$status, $id]);
-        return ["status" => true, "message" => "Randevu durumu güncellendi: " . $status];
-    } catch (PDOException $e) {
-        return ["status" => false, "message" => "Hata: " . $e->getMessage()];
-    }
-}
-
-function checkStaffAvailability($staffId, $date, $time) {
-    global $conn;
-    try {
-        if (empty($staffId)) return true;
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM Appointments WHERE staff_id = ? AND appointment_date = ? AND appointment_time = ? AND status IN ('Pending', 'Approved')");
-        $stmt->execute([$staffId, $date, $time]);
-        $count = $stmt->fetchColumn();
-        return $count == 0; 
-    } catch (PDOException $e) {
-        return false;
-    }
-}
-
-function getDailyAvailability($date) {
-    global $conn;
-    $startHour = 9;
-    $endHour = 20;
-    
     try {
         $staffs = fetchStaff();
-        $stmt = $conn->prepare("SELECT staff_id, appointment_time FROM Appointments WHERE appointment_date = ? AND status IN ('Pending', 'Approved')");
+
+        // O tarihteki tüm randevuları çek
+        $sql = "SELECT a.staff_id, a.appointment_time, s.duration 
+                FROM Appointments a
+                LEFT JOIN Services s ON a.service_id = s.id
+                WHERE a.appointment_date = ? 
+                AND a.status IN ('Pending', 'Approved')";
+        $stmt = $conn->prepare($sql);
         $stmt->execute([$date]);
-        $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $availability = [];
 
         foreach ($staffs as $staff) {
             $staffSchedule = [];
             $staffId = $staff['id'];
-            $busyTimes = array_map(function($b) { return substr($b['appointment_time'], 0, 5); }, array_filter($bookings, function($b) use ($staffId) { return $b['staff_id'] == $staffId; }));
 
-            for ($h = $startHour; $h < $endHour; $h++) {
-                $timeSlot = sprintf("%02d:00", $h);
-                $isBusy = in_array($timeSlot, $busyTimes);
-                $staffSchedule[] = ['time' => $timeSlot, 'status' => $isBusy ? 'full' : 'free'];
+            // Sadece bu personelin randevuları
+            $staffApps = array_filter($appointments, function ($a) use ($staffId) {
+                return $a['staff_id'] == $staffId;
+            });
+
+            foreach ($slots as $slotTime) {
+                $isBusy = false;
+                // Slotun başlangıç ve bitişi (görselleştirme için 30dk varsayalım)
+                $slotStart = strtotime("$date $slotTime");
+                $slotEnd = $slotStart + (30 * 60);
+
+                foreach ($staffApps as $app) {
+                    $appStart = strtotime("$date " . $app['appointment_time']);
+                    $duration = $app['duration'] ? $app['duration'] : 30;
+                    $appEnd = $appStart + ($duration * 60);
+
+                    // Eğer slot herhangi bir randevunun süresi içine denk geliyorsa DOLU işaretle
+                    if ($slotStart < $appEnd && $slotEnd > $appStart) {
+                        $isBusy = true;
+                        break;
+                    }
+                }
+
+                $staffSchedule[] = [
+                    'time' => $slotTime,
+                    'status' => $isBusy ? 'full' : 'free'
+                ];
             }
-            $availability[] = ['staff_name' => $staff['username'], 'schedule' => $staffSchedule];
+
+            $availability[] = [
+                'staff_name' => $staff['username'],
+                'schedule' => $staffSchedule
+            ];
         }
         return $availability;
     } catch (PDOException $e) {
@@ -271,100 +243,80 @@ function getDailyAvailability($date) {
     }
 }
 
-function createAppointment($postData) {
+function createAppointment($postData)
+{
     global $conn;
-    if (!$conn) return ["status" => false, "message" => "Veritabanı bağlantısı yok."];
-    
-    if(empty($postData['date']) || empty($postData['time'])) {
-        return ["status" => false, "message" => "Lütfen tarih ve saat seçiniz."];
+    if (!$conn) return ["status" => false, "message" => "DB Hatası"];
+
+    if (empty($postData['date']) || empty($postData['time']) || empty($postData['service'])) {
+        return ["status" => false, "message" => "Eksik bilgi."];
     }
 
-    if (!empty($postData['staff_id']) && !checkStaffAvailability($postData['staff_id'], $postData['date'], $postData['time'])) {
-        return ["status" => false, "message" => "Seçtiğiniz personel bu tarih ve saatte dolu!"];
+    // Seçilen hizmetin süresini bul
+    $stmt = $conn->prepare("SELECT duration FROM Services WHERE id = ?");
+    $stmt->execute([$postData['service']]);
+    $serviceDuration = $stmt->fetchColumn();
+    $serviceDuration = $serviceDuration ? $serviceDuration : 30; // Varsayılan 30dk
+
+    // Çakışma Kontrolü
+    if (!empty($postData['staff_id'])) {
+        if (checkTimeOverlap($postData['staff_id'], $postData['date'], $postData['time'], $serviceDuration)) {
+            return ["status" => false, "message" => "Seçilen personel o saat aralığında dolu (İşlem süresi: $serviceDuration dk)."];
+        }
     }
 
     try {
         $staffId = !empty($postData['staff_id']) ? $postData['staff_id'] : null;
         $sql = "INSERT INTO Appointments (customer_name, customer_phone, service_id, appointment_date, appointment_time, staff_id) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $result = $stmt->execute([$postData['name'], $postData['phone'], $postData['service'], $postData['date'], $postData['time'], $staffId]);
-        return $result ? ["status" => true, "message" => "Randevunuz başarıyla oluşturuldu."] : ["status" => false, "message" => "Hata oluştu."];
-    } catch (PDOException $e) {
-        return ["status" => false, "message" => "Veritabanı Hatası: " . $e->getMessage()];
-    }
-}
-
-function checkAdminLogin($username, $password) {
-    global $conn;
-    try {
-        $stmt = $conn->prepare("SELECT * FROM Users WHERE username = ?");
-        $stmt->execute([$username]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($user && password_verify($password, $user['password_hash'])) {
-            return ["status" => true, "user" => $user];
-        } else {
-            return ["status" => false, "message" => "Kullanıcı adı veya şifre hatalı."];
-        }
-    } catch (PDOException $e) {
-        return ["status" => false, "message" => "Giriş hatası: " . $e->getMessage()];
-    }
-}
-
-function fetchUsers() {
-    global $conn;
-    try {
-        $stmt = $conn->query("SELECT * FROM Users ORDER BY id ASC");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        return [];
-    }
-}
-
-function fetchStaff() {
-    global $conn;
-    try {
-        $stmt = $conn->query("SELECT * FROM Users WHERE role_type = 2 ORDER BY id ASC");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        return [];
-    }
-}
-
-function addUser($username, $password, $roleType = 2) {
-    global $conn;
-    try {
-        $check = $conn->prepare("SELECT count(*) FROM Users WHERE username = ?");
-        $check->execute([$username]);
-        if($check->fetchColumn() > 0) { return ["status" => false, "message" => "Bu kullanıcı adı zaten var."]; }
-        $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("INSERT INTO Users (username, password_hash, role_type) VALUES (?, ?, ?)");
-        $stmt->execute([$username, $hash, $roleType]);
-        return ["status" => true, "message" => "Kullanıcı oluşturuldu."];
+        $stmt->execute([$postData['name'], $postData['phone'], $postData['service'], $postData['date'], $postData['time'], $staffId]);
+        return ["status" => true, "message" => "Randevunuz oluşturuldu."];
     } catch (PDOException $e) {
         return ["status" => false, "message" => "Hata: " . $e->getMessage()];
     }
 }
 
-function deleteUser($id) {
+// KULLANICILAR
+function checkAdminLogin($user, $pass)
+{
     global $conn;
+    $u = $conn->prepare("SELECT * FROM Users WHERE username = ?");
+    $u->execute([$user]);
+    $data = $u->fetch(PDO::FETCH_ASSOC);
+    if ($data && password_verify($pass, $data['password_hash'])) return ["status" => true, "user" => $data];
+    return ["status" => false, "message" => "Hatalı giriş."];
+}
+function fetchUsers()
+{
+    global $conn;
+    return $conn->query("SELECT * FROM Users")->fetchAll(PDO::FETCH_ASSOC);
+}
+function fetchStaff()
+{
+    global $conn;
+    return $conn->query("SELECT * FROM Users WHERE role_type = 2")->fetchAll(PDO::FETCH_ASSOC);
+}
+function addUser($u, $p, $r)
+{
+    global $conn;
+    $h = password_hash($p, PASSWORD_DEFAULT);
     try {
-        $stmt = $conn->prepare("DELETE FROM Users WHERE id = ?");
-        $stmt->execute([$id]);
-        return ["status" => true, "message" => "Kullanıcı silindi."];
+        $conn->prepare("INSERT INTO Users (username, password_hash, role_type) VALUES (?,?,?)")->execute([$u, $h, $r]);
+        return ["status" => true, "message" => "Eklendi"];
     } catch (PDOException $e) {
-        return ["status" => false, "message" => "Silinemedi."];
+        return ["status" => false, "message" => "Hata"];
     }
 }
-
-function updateUserPassword($id, $newPassword) {
+function deleteUser($id)
+{
     global $conn;
-    try {
-        $hash = password_hash($newPassword, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("UPDATE Users SET password_hash = ? WHERE id = ?");
-        $stmt->execute([$hash, $id]);
-        return ["status" => true, "message" => "Şifre güncellendi."];
-    } catch (PDOException $e) {
-        return ["status" => false, "message" => "Hata: " . $e->getMessage()];
-    }
+    $conn->prepare("DELETE FROM Users WHERE id = ?")->execute([$id]);
+    return ["status" => true, "message" => "Silindi"];
 }
-?>
+function updateUserPassword($id, $p)
+{
+    global $conn;
+    $h = password_hash($p, PASSWORD_DEFAULT);
+    $conn->prepare("UPDATE Users SET password_hash = ? WHERE id = ?")->execute([$h, $id]);
+    return ["status" => true, "message" => "Güncellendi"];
+}
