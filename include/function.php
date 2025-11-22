@@ -33,14 +33,18 @@ function updateSiteSettings($postData, $filesData = null) {
             }
         }
 
+        // 1. Favicon Yükleme
         if (isset($filesData['site_favicon']) && $filesData['site_favicon']['error'] == 0) {
             $allowed = ['ico', 'png', 'jpg', 'jpeg', 'svg'];
             $ext = strtolower(pathinfo($filesData['site_favicon']['name'], PATHINFO_EXTENSION));
+            
             if (in_array($ext, $allowed)) {
                 $uploadDir = __DIR__ . '/../uploads/'; 
                 if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                
                 $fileName = 'favicon.' . $ext;
                 $targetPath = $uploadDir . $fileName;
+                
                 if (move_uploaded_file($filesData['site_favicon']['tmp_name'], $targetPath)) {
                     $dbPath = 'uploads/' . $fileName . '?v=' . time();
                     $stmt->execute(['site_favicon', $dbPath]);
@@ -48,17 +52,40 @@ function updateSiteSettings($postData, $filesData = null) {
             }
         }
 
+        // 2. Hakkımızda Resmi Yükleme
         if (isset($filesData['about_image']) && $filesData['about_image']['error'] == 0) {
             $allowed = ['jpg', 'jpeg', 'png', 'webp'];
             $ext = strtolower(pathinfo($filesData['about_image']['name'], PATHINFO_EXTENSION));
+            
             if (in_array($ext, $allowed)) {
                 $uploadDir = __DIR__ . '/../uploads/'; 
                 if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                
                 $fileName = 'about_bg_' . time() . '.' . $ext;
                 $targetPath = $uploadDir . $fileName;
+                
                 if (move_uploaded_file($filesData['about_image']['tmp_name'], $targetPath)) {
                     $dbPath = 'uploads/' . $fileName;
                     $stmt->execute(['about_image', $dbPath]);
+                }
+            }
+        }
+
+        // 3. Hero (Ana Sayfa) Resmi Yükleme (YENİ EKLENDİ)
+        if (isset($filesData['hero_image']) && $filesData['hero_image']['error'] == 0) {
+            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+            $ext = strtolower(pathinfo($filesData['hero_image']['name'], PATHINFO_EXTENSION));
+            
+            if (in_array($ext, $allowed)) {
+                $uploadDir = __DIR__ . '/../uploads/'; 
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                
+                $fileName = 'hero_bg_' . time() . '.' . $ext;
+                $targetPath = $uploadDir . $fileName;
+                
+                if (move_uploaded_file($filesData['hero_image']['tmp_name'], $targetPath)) {
+                    $dbPath = 'uploads/' . $fileName;
+                    $stmt->execute(['hero_image', $dbPath]);
                 }
             }
         }
@@ -69,7 +96,8 @@ function updateSiteSettings($postData, $filesData = null) {
     }
 }
 
-// ... (Diğer fonksiyonlar aynı: fetchServices, addService, deleteService, fetchGallery, addGalleryImage, deleteGalleryImage, fetchAppointments, updateAppointmentStatus)
+// ... (Diğer tüm fonksiyonlar aynı kalacak)
+// (fetchServices, addService, deleteService, fetchGallery, addGalleryImage, deleteGalleryImage, fetchAppointments, updateAppointmentStatus, checkStaffAvailability, getDailyAvailability, createAppointment, checkAdminLogin, fetchUsers, fetchStaff, addUser, deleteUser, updateUserPassword)
 /**
  * HİZMET FONKSİYONLARI
  */
@@ -199,27 +227,19 @@ function updateAppointmentStatus($id, $status) {
     }
 }
 
-// KRİTİK GÜNCELLEME: Personel Müsaitlik Kontrolü
-// Sadece 'Pending' ve 'Approved' olanlar "DOLU" sayılır. 
-// 'Completed' veya 'Cancelled' olanlar "BOŞ" sayılır.
 function checkStaffAvailability($staffId, $date, $time) {
     global $conn;
     try {
-        if (empty($staffId)) return true; // Personel seçilmediyse genel randevu, her zaman uygun kabul edelim (veya iş mantığına göre değişir)
-
+        if (empty($staffId)) return true;
         $stmt = $conn->prepare("SELECT COUNT(*) FROM Appointments WHERE staff_id = ? AND appointment_date = ? AND appointment_time = ? AND status IN ('Pending', 'Approved')");
         $stmt->execute([$staffId, $date, $time]);
         $count = $stmt->fetchColumn();
-        
-        // Eğer count 0 ise (Pending veya Approved yoksa) MÜSAİTTİR (true).
         return $count == 0; 
     } catch (PDOException $e) {
         return false;
     }
 }
 
-// KRİTİK GÜNCELLEME: Günlük Müsaitlik Listesi (Modal İçin)
-// Sadece 'Pending' ve 'Approved' olanları 'full' (kırmızı) olarak işaretler.
 function getDailyAvailability($date) {
     global $conn;
     $startHour = 9;
@@ -227,8 +247,6 @@ function getDailyAvailability($date) {
     
     try {
         $staffs = fetchStaff();
-        
-        // Sadece DOLU sayılan statüleri çekiyoruz
         $stmt = $conn->prepare("SELECT staff_id, appointment_time FROM Appointments WHERE appointment_date = ? AND status IN ('Pending', 'Approved')");
         $stmt->execute([$date]);
         $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -238,16 +256,12 @@ function getDailyAvailability($date) {
         foreach ($staffs as $staff) {
             $staffSchedule = [];
             $staffId = $staff['id'];
-            
             $busyTimes = array_map(function($b) { return substr($b['appointment_time'], 0, 5); }, array_filter($bookings, function($b) use ($staffId) { return $b['staff_id'] == $staffId; }));
 
             for ($h = $startHour; $h < $endHour; $h++) {
                 $timeSlot = sprintf("%02d:00", $h);
                 $isBusy = in_array($timeSlot, $busyTimes);
-                $staffSchedule[] = [
-                    'time' => $timeSlot, 
-                    'status' => $isBusy ? 'full' : 'free' // full=kırmızı, free=yeşil
-                ];
+                $staffSchedule[] = ['time' => $timeSlot, 'status' => $isBusy ? 'full' : 'free'];
             }
             $availability[] = ['staff_name' => $staff['username'], 'schedule' => $staffSchedule];
         }
@@ -265,11 +279,8 @@ function createAppointment($postData) {
         return ["status" => false, "message" => "Lütfen tarih ve saat seçiniz."];
     }
 
-    // Personel seçildiyse DOLULUK KONTROLÜ YAP
-    if (!empty($postData['staff_id'])) {
-        if (!checkStaffAvailability($postData['staff_id'], $postData['date'], $postData['time'])) {
-            return ["status" => false, "message" => "Seçtiğiniz personel bu tarih ve saatte DOLU (Bekliyor veya Onaylanmış randevusu var)."];
-        }
+    if (!empty($postData['staff_id']) && !checkStaffAvailability($postData['staff_id'], $postData['date'], $postData['time'])) {
+        return ["status" => false, "message" => "Seçtiğiniz personel bu tarih ve saatte dolu!"];
     }
 
     try {

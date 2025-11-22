@@ -65,6 +65,9 @@ $site_logo_text = getSetting('site_logo_text') ?: 'ELITE<span class="text-gold-4
 $about_img = getSetting('about_image') ?: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?q=80&w=2070&auto=format&fit=crop";
 $about_text = getSetting('about_text');
 
+// YENİ: Hero Resmi
+$hero_img = getSetting('hero_image') ?: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2074&auto=format&fit=crop";
+
 // DİNAMİK RENK AYARLARI
 $primary_color = getSetting('theme_color_primary') ?: '#D4AF37'; 
 $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; 
@@ -163,7 +166,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             <div class="flex items-center gap-2 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <?php if($site_fav): ?>
-                    <img src="<?= $site_fav ?>" class="w-10 h-10 rounded-full p-1 object-cover">
+                    <img src="<?= $site_fav ?>" class="w-10 h-10 rounded-full bg-gold-500 p-1 object-cover">
                 <?php else: ?>
                     <div class="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center text-black font-bold text-lg"><i class="fas fa-cut"></i></div>
                 <?php endif; ?>
@@ -196,7 +199,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
     <!-- HERO SECTION -->
     <section id="home" class="relative h-screen flex items-center justify-center text-center px-4 pt-20">
         <div class="absolute inset-0 z-0">
-            <img src="https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2074&auto=format&fit=crop" class="w-full h-full object-cover opacity-30" alt="Background">
+            <img src="<?= $hero_img ?>" class="w-full h-full object-cover opacity-30" alt="Background">
             <div class="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-dark-900/90"></div>
         </div>
         <div class="relative z-10 max-w-4xl mx-auto animate-fade-in-up">

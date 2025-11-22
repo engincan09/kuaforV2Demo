@@ -17,6 +17,7 @@ INSERT IGNORE INTO Settings (setting_key, setting_value) VALUES
 ('theme_color_secondary', '#121212'),
 ('site_favicon', ''),
 ('site_logo_text', 'ELITE<span class="text-gold-400">CUTS</span>'),
+('hero_image', ''),
 ('about_image', '');
 
 -- 2. Hizmetler Tablosu

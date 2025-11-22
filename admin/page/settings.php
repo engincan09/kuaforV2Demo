@@ -22,8 +22,23 @@ if (isset($_POST['update_settings'])) {
     <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
         <h3 class="text-xl font-bold text-yellow-500 mb-6 border-b border-gray-700 pb-2">Site İçerikleri</h3>
         <div class="grid grid-cols-1 gap-6">
+            <!-- YENİ: Hero Arka Plan Resmi -->
             <div>
-                <label class="block text-gray-400 mb-2 font-bold text-sm uppercase">Hero Başlık</label>
+                <label class="block text-gray-400 mb-2 font-bold text-sm uppercase">Ana Sayfa Arka Plan (Hero)</label>
+                <div class="flex items-center gap-4">
+                    <?php 
+                    $heroImg = getSetting('hero_image');
+                    if($heroImg): 
+                    ?>
+                        <img src="../../<?= $heroImg ?>" class="w-24 h-16 object-cover rounded border border-gray-600" title="Mevcut Resim">
+                    <?php endif; ?>
+                    <input type="file" name="hero_image" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"/>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Önerilen: 1920x1080 px (Yüksek Kalite)</p>
+            </div>
+
+            <div>
+                <label class="block text-gray-400 mb-2 font-bold text-sm uppercase">Hero Başlık (HTML)</label>
                 <textarea name="hero_title" class="w-full bg-gray-900 border border-gray-600 p-4 rounded-lg focus:border-yellow-500 focus:outline-none text-white h-24"><?= getSetting('hero_title') ?></textarea>
             </div>
             <div>
