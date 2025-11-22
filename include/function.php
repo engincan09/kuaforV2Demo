@@ -16,11 +16,10 @@ function getSetting($key) {
 function updateSiteSettings($postData, $filesData = null) {
     global $conn;
     
-    // GÜNCELLENDİ: Renk ayarları eklendi
     $settings = [
         'hero_title', 'hero_subtitle', 'about_title', 'about_text',
         'site_title', 'site_description', 'site_keywords', 'site_logo_text',
-        'theme_color_primary', 'theme_color_secondary' // Yeni Renkler
+        'theme_color_primary', 'theme_color_secondary'
     ];
 
     try {
@@ -34,7 +33,6 @@ function updateSiteSettings($postData, $filesData = null) {
             }
         }
 
-        // Dosya yükleme işlemleri (Favicon & About Image) - Değişiklik yok
         if (isset($filesData['site_favicon']) && $filesData['site_favicon']['error'] == 0) {
             $allowed = ['ico', 'png', 'jpg', 'jpeg', 'svg'];
             $ext = strtolower(pathinfo($filesData['site_favicon']['name'], PATHINFO_EXTENSION));
@@ -71,7 +69,7 @@ function updateSiteSettings($postData, $filesData = null) {
     }
 }
 
-// ... (Diğer fonksiyonlar aynı: fetchServices, addService, deleteService, fetchGallery, addGalleryImage, deleteGalleryImage, fetchAppointments, updateAppointmentStatus, checkStaffAvailability, getDailyAvailability, createAppointment, checkAdminLogin, fetchUsers, fetchStaff, addUser, deleteUser, updateUserPassword)
+// ... (Diğer fonksiyonlar aynı: fetchServices, addService, deleteService, fetchGallery, addGalleryImage, deleteGalleryImage, fetchAppointments, updateAppointmentStatus)
 /**
  * HİZMET FONKSİYONLARI
  */
@@ -122,7 +120,6 @@ function fetchGallery() {
     }
 }
 
-// YENİ: Galeriye Resim Ekleme
 function addGalleryImage($fileData) {
     global $conn;
     if ($fileData['error'] != 0) return ["status" => false, "message" => "Dosya yükleme hatası."];
@@ -151,21 +148,17 @@ function addGalleryImage($fileData) {
     return ["status" => false, "message" => "Dosya taşınamadı."];
 }
 
-// YENİ: Galeriden Resim Silme
 function deleteGalleryImage($id) {
     global $conn;
     try {
-        // Önce dosya yolunu bul
         $stmt = $conn->prepare("SELECT image_url FROM Gallery WHERE id = ?");
         $stmt->execute([$id]);
         $img = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($img) {
-            // Dosyayı diskten sil
             $filePath = __DIR__ . '/../' . $img['image_url'];
             if (file_exists($filePath)) unlink($filePath);
 
-            // Kaydı sil
             $del = $conn->prepare("DELETE FROM Gallery WHERE id = ?");
             $del->execute([$id]);
             return ["status" => true, "message" => "Resim silindi."];
@@ -206,20 +199,27 @@ function updateAppointmentStatus($id, $status) {
     }
 }
 
-// Personel Müsaitlik Kontrolü
+// KRİTİK GÜNCELLEME: Personel Müsaitlik Kontrolü
+// Sadece 'Pending' ve 'Approved' olanlar "DOLU" sayılır. 
+// 'Completed' veya 'Cancelled' olanlar "BOŞ" sayılır.
 function checkStaffAvailability($staffId, $date, $time) {
     global $conn;
     try {
-        if (empty($staffId)) return true;
+        if (empty($staffId)) return true; // Personel seçilmediyse genel randevu, her zaman uygun kabul edelim (veya iş mantığına göre değişir)
+
         $stmt = $conn->prepare("SELECT COUNT(*) FROM Appointments WHERE staff_id = ? AND appointment_date = ? AND appointment_time = ? AND status IN ('Pending', 'Approved')");
         $stmt->execute([$staffId, $date, $time]);
         $count = $stmt->fetchColumn();
+        
+        // Eğer count 0 ise (Pending veya Approved yoksa) MÜSAİTTİR (true).
         return $count == 0; 
     } catch (PDOException $e) {
         return false;
     }
 }
 
+// KRİTİK GÜNCELLEME: Günlük Müsaitlik Listesi (Modal İçin)
+// Sadece 'Pending' ve 'Approved' olanları 'full' (kırmızı) olarak işaretler.
 function getDailyAvailability($date) {
     global $conn;
     $startHour = 9;
@@ -227,6 +227,8 @@ function getDailyAvailability($date) {
     
     try {
         $staffs = fetchStaff();
+        
+        // Sadece DOLU sayılan statüleri çekiyoruz
         $stmt = $conn->prepare("SELECT staff_id, appointment_time FROM Appointments WHERE appointment_date = ? AND status IN ('Pending', 'Approved')");
         $stmt->execute([$date]);
         $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -236,12 +238,16 @@ function getDailyAvailability($date) {
         foreach ($staffs as $staff) {
             $staffSchedule = [];
             $staffId = $staff['id'];
+            
             $busyTimes = array_map(function($b) { return substr($b['appointment_time'], 0, 5); }, array_filter($bookings, function($b) use ($staffId) { return $b['staff_id'] == $staffId; }));
 
             for ($h = $startHour; $h < $endHour; $h++) {
                 $timeSlot = sprintf("%02d:00", $h);
                 $isBusy = in_array($timeSlot, $busyTimes);
-                $staffSchedule[] = ['time' => $timeSlot, 'status' => $isBusy ? 'full' : 'free'];
+                $staffSchedule[] = [
+                    'time' => $timeSlot, 
+                    'status' => $isBusy ? 'full' : 'free' // full=kırmızı, free=yeşil
+                ];
             }
             $availability[] = ['staff_name' => $staff['username'], 'schedule' => $staffSchedule];
         }
@@ -259,8 +265,11 @@ function createAppointment($postData) {
         return ["status" => false, "message" => "Lütfen tarih ve saat seçiniz."];
     }
 
-    if (!empty($postData['staff_id']) && !checkStaffAvailability($postData['staff_id'], $postData['date'], $postData['time'])) {
-        return ["status" => false, "message" => "Seçtiğiniz personel bu tarih ve saatte dolu!"];
+    // Personel seçildiyse DOLULUK KONTROLÜ YAP
+    if (!empty($postData['staff_id'])) {
+        if (!checkStaffAvailability($postData['staff_id'], $postData['date'], $postData['time'])) {
+            return ["status" => false, "message" => "Seçtiğiniz personel bu tarih ve saatte DOLU (Bekliyor veya Onaylanmış randevusu var)."];
+        }
     }
 
     try {

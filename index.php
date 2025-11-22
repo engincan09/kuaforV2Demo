@@ -40,9 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['book_appointment'])) {
         'message' => $result['message']
     ];
 
-    // DÜZELTME: PRG Pattern uyguluyoruz. 
-    // İşlem sonucu ne olursa olsun (başarılı/başarısız) redirect yapıyoruz.
-    // Bu sayede F5'e basınca form tekrar gönderilmez ve "personel dolu" hatası almazsınız.
+    // Redirect (Sayfa yenileme hatasını önler)
     header("Location: " . $_SERVER['PHP_SELF']);
     exit;
 }
@@ -68,8 +66,8 @@ $about_img = getSetting('about_image') ?: "https://images.unsplash.com/photo-162
 $about_text = getSetting('about_text');
 
 // DİNAMİK RENK AYARLARI
-$primary_color = getSetting('theme_color_primary') ?: '#D4AF37'; // Gold
-$secondary_color = getSetting('theme_color_secondary') ?: '#121212'; // Dark
+$primary_color = getSetting('theme_color_primary') ?: '#D4AF37'; 
+$secondary_color = getSetting('theme_color_secondary') ?: '#121212'; 
 ?>
 <!DOCTYPE html>
 <html lang="tr" class="scroll-smooth">
@@ -88,7 +86,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; // Dark
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
-    <!-- TAILWIND CONFIG: Dinamik Renkleri Buraya Gömüyoruz -->
+    <!-- TAILWIND CONFIG -->
     <script>
         tailwind.config = {
             theme: {
@@ -127,7 +125,6 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; // Dark
         .modal-scroll::-webkit-scrollbar-track { background: #2D2D2D; }
         .modal-scroll::-webkit-scrollbar-thumb { background: <?= $primary_color ?>; border-radius: 3px; }
         
-        /* Text selection rengini de dinamik yapalım */
         ::selection { background-color: <?= $primary_color ?>; color: black; }
     </style>
 </head>
@@ -166,7 +163,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; // Dark
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             <div class="flex items-center gap-2 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <?php if($site_fav): ?>
-                    <img src="<?= $site_fav ?>" class="w-10 h-10 rounded-full p-1 object-cover">
+                    <img src="<?= $site_fav ?>" class="w-10 h-10 rounded-full bg-gold-500 p-1 object-cover">
                 <?php else: ?>
                     <div class="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center text-black font-bold text-lg"><i class="fas fa-cut"></i></div>
                 <?php endif; ?>
@@ -179,6 +176,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; // Dark
                 <a href="#services" class="hover:text-gold-400 text-sm font-medium transition">Hizmetler</a>
                 <a href="#gallery" class="hover:text-gold-400 text-sm font-medium transition">Galeri</a>
                 <a href="#booking" class="bg-gold-500 text-black font-bold px-6 py-2 rounded hover:bg-white transition shadow-lg shadow-gold-500/20">Randevu Al</a>
+                <a href="admin/" class="text-gray-500 hover:text-white text-xs uppercase tracking-widest border border-gray-700 px-3 py-1 rounded"><i class="fas fa-lock mr-1"></i> Yönetim</a>
             </div>
 
             <div class="md:hidden flex items-center">
@@ -274,7 +272,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; // Dark
         </div>
     </section>
 
-    <!-- GALERİ BÖLÜMÜ (YENİ EKLENDİ) -->
+    <!-- GALERİ BÖLÜMÜ -->
     <section id="gallery" class="py-24 bg-dark-900 border-t border-white/5">
         <div class="max-w-7xl mx-auto px-4">
             <div class="text-center mb-16">
@@ -306,8 +304,6 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; // Dark
         <div class="max-w-4xl mx-auto px-4 relative z-10">
             <div class="bg-dark-900 p-8 md:p-12 rounded-2xl shadow-2xl border border-white/10 relative">
                 
-                <!-- GEREKSİZ "location.reload" BUTONU KALDIRILDI -->
-
                 <h2 class="text-3xl font-bold text-center mb-2 font-serif text-white">Randevu Oluştur</h2>
                 <p class="text-center text-gray-400 mb-10">Size uygun zamanı ve personeli seçin.</p>
                 
@@ -443,7 +439,6 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; // Dark
         <?php if ($toast_data): ?>
             document.addEventListener('DOMContentLoaded', function() {
                 showToast("<?= addslashes($toast_data['message']) ?>", "<?= $toast_data['type'] ?>");
-                <?php if ($toast_data['type'] === 'success'): ?>document.getElementById('bookingForm').reset();<?php endif; ?>
             });
         <?php endif; ?>
     </script>
