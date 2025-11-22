@@ -57,7 +57,7 @@ $images = fetchGallery();
         <?php foreach ($images as $img): ?>
             <div class="relative group bg-gray-800 p-2 rounded-xl border border-gray-700 shadow-lg">
                 <div class="aspect-square overflow-hidden rounded-lg">
-                    <img src="../../<?= htmlspecialchars($img['image_url']) ?>" class="w-full h-full object-cover transform group-hover:scale-110 transition duration-500">
+                    <img src="../<?= htmlspecialchars($img['image_url']) ?>" class="w-full h-full object-cover transform group-hover:scale-110 transition duration-500">
                 </div>
                 <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center rounded-xl">
                     <a href="?delete_id=<?= $img['id'] ?>" onclick="return confirm('Bu resmi silmek istediğinize emin misiniz?')" class="bg-red-600 hover:bg-red-500 text-white p-3 rounded-full shadow-xl transform hover:scale-110 transition">

@@ -19,7 +19,7 @@ if (file_exists($base_dir . '/include/function.php')) {
     die("HATA: Function dosyası bulunamadı.");
 }
 
-// --- AJAX API İŞLEYİCİSİ (MODAL İÇİN) ---
+// --- AJAX API ---
 if (isset($_GET['action']) && $_GET['action'] == 'get_availability' && isset($_GET['date'])) {
     header('Content-Type: application/json');
     $data = getDailyAvailability($_GET['date']);
@@ -30,22 +30,18 @@ if (isset($_GET['action']) && $_GET['action'] == 'get_availability' && isset($_G
 // --- İŞLEM MANTIĞI ---
 $toast_data = null; 
 
-// Randevu POST İşlemi
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['book_appointment'])) {
     $result = createAppointment($_POST);
     
-    // Sonucu Session'a kaydet (Flash Message)
     $_SESSION['toast_data'] = [
         'type' => $result['status'] ? 'success' : 'error',
         'message' => $result['message']
     ];
 
-    // Redirect (Sayfa yenileme hatasını önler)
     header("Location: " . $_SERVER['PHP_SELF']);
     exit;
 }
 
-// Session'da mesaj varsa al ve sil
 if (isset($_SESSION['toast_data'])) {
     $toast_data = $_SESSION['toast_data'];
     unset($_SESSION['toast_data']); 
@@ -62,13 +58,11 @@ $site_desc = getSetting('site_description') ?: "Profesyonel saç kesimi ve bakı
 $site_keys = getSetting('site_keywords') ?: "kuaför, berber, saç kesimi";
 $site_fav = getSetting('site_favicon');
 $site_logo_text = getSetting('site_logo_text') ?: 'ELITE<span class="text-gold-400">CUTS</span>';
-$about_img = getSetting('about_image') ?: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?q=80&w=2070&auto=format&fit=crop";
+$about_img = getSetting('about_image') ?: "https://images.unsplash.com/photo-1560869713-7d0a29430803?ixlib=rb-4.0.3&q=80&w=2070&auto=format&fit=crop";
 $about_text = getSetting('about_text');
-
-// YENİ: Hero Resmi
 $hero_img = getSetting('hero_image') ?: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2074&auto=format&fit=crop";
 
-// DİNAMİK RENK AYARLARI
+// RENKLER
 $primary_color = getSetting('theme_color_primary') ?: '#D4AF37'; 
 $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; 
 ?>
@@ -77,7 +71,6 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <title><?= htmlspecialchars($site_title) ?></title>
     <meta name="description" content="<?= htmlspecialchars($site_desc) ?>">
     <meta name="keywords" content="<?= htmlspecialchars($site_keys) ?>">
@@ -89,7 +82,6 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
-    <!-- TAILWIND CONFIG -->
     <script>
         tailwind.config = {
             theme: {
@@ -133,8 +125,15 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
 </head>
 <body class="bg-dark-900 text-gray-100 antialiased overflow-x-hidden">
 
-    <!-- TOAST CONTAINER -->
     <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- GALERİ LIGHTBOX (BÜYÜTME MODALI) -->
+    <div id="galleryModal" class="fixed inset-0 z-[70] hidden bg-black/90 backdrop-blur-sm flex items-center justify-center p-4" onclick="closeGallery()">
+        <div class="relative max-w-5xl w-full flex justify-center">
+            <img id="galleryImage" src="" class="max-h-[90vh] max-w-full rounded-lg shadow-2xl transform transition-transform duration-300 scale-95">
+            <button class="absolute -top-12 right-0 text-white text-4xl hover:text-gold-500 transition focus:outline-none" onclick="closeGallery()">&times;</button>
+        </div>
+    </div>
 
     <!-- MÜSAİTLİK MODALI -->
     <div id="availabilityModal" class="fixed inset-0 z-[60] hidden">
@@ -166,7 +165,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             <div class="flex items-center gap-2 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <?php if($site_fav): ?>
-                    <img src="<?= $site_fav ?>" class="w-10 h-10 rounded-full bg-gold-500 p-1 object-cover">
+                    <img src="<?= $site_fav ?>" class="w-10 h-10 rounded-full p-1 object-cover">
                 <?php else: ?>
                     <div class="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center text-black font-bold text-lg"><i class="fas fa-cut"></i></div>
                 <?php endif; ?>
@@ -210,32 +209,24 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
         </div>
     </section>
 
-    <!-- HAKKIMIZDA (SOL RESİM - SAĞ YAZI) -->
+    <!-- HAKKIMIZDA -->
     <section id="about" class="py-24 bg-dark-900 relative overflow-hidden">
         <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            
-            <!-- SOL: RESİM -->
             <div class="relative group">
                 <div class="absolute -inset-4 bg-gold-500/20 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
                 <div class="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10">
                     <img src="<?= $about_img ?>" class="w-full h-[500px] object-cover filter grayscale group-hover:grayscale-0 transition duration-700 transform group-hover:scale-105">
-                    <!-- Dekoratif Çerçeve -->
                     <div class="absolute inset-0 border-2 border-gold-500/30 rounded-2xl m-4 pointer-events-none"></div>
                 </div>
             </div>
-
-            <!-- SAĞ: YAZI -->
             <div>
                 <h2 class="text-gold-400 text-sm font-bold tracking-[0.2em] uppercase mb-4 flex items-center">
                     <span class="w-10 h-[2px] bg-gold-500 mr-3"></span> Biz Kimiz?
                 </h2>
-                <h3 class="text-4xl md:text-5xl font-bold text-white mb-8 font-serif leading-tight">
-                    <?= getSetting('about_title') ?>
-                </h3>
+                <h3 class="text-4xl md:text-5xl font-bold text-white mb-8 font-serif leading-tight"><?= getSetting('about_title') ?></h3>
                 <div class="text-gray-400 mb-8 leading-relaxed text-lg font-light space-y-4">
                     <?= nl2br($about_text) ?>
                 </div>
-                
                 <div class="grid grid-cols-2 gap-8 border-t border-gray-800 pt-8">
                     <div>
                         <div class="text-5xl font-bold text-white mb-2">15+</div>
@@ -274,7 +265,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
         </div>
     </section>
 
-    <!-- GALERİ BÖLÜMÜ -->
+    <!-- GALERİ BÖLÜMÜ (GÜNCELLENDİ - ONCLICK EKLENDİ) -->
     <section id="gallery" class="py-24 bg-dark-900 border-t border-white/5">
         <div class="max-w-7xl mx-auto px-4">
             <div class="text-center mb-16">
@@ -289,7 +280,8 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
             <?php else: ?>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <?php foreach($gallery as $img): ?>
-                        <div class="group relative overflow-hidden rounded-lg aspect-square cursor-pointer">
+                        <!-- ONCLICK EKLENDİ: Resim yolunu fonksiyona gönderiyoruz -->
+                        <div class="group relative overflow-hidden rounded-lg aspect-square cursor-pointer" onclick="openGallery('<?= htmlspecialchars($img['image_url']) ?>')">
                             <img src="<?= htmlspecialchars($img['image_url']) ?>" class="w-full h-full object-cover transform group-hover:scale-110 transition duration-700 filter grayscale group-hover:grayscale-0">
                             <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
                                 <i class="fas fa-search-plus text-gold-500 text-3xl transform scale-0 group-hover:scale-100 transition duration-300 delay-100"></i>
@@ -376,6 +368,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
 
     <!-- SCRIPTS -->
     <script>
+        // Toast Function
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -387,6 +380,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
             setTimeout(() => { toast.classList.remove('toast-enter'); toast.classList.add('toast-exit'); setTimeout(() => toast.remove(), 500); }, 5000);
         }
 
+        // Availability Modal
         function toggleModal(show) {
             const modal = document.getElementById('availabilityModal');
             if(show) {
@@ -436,6 +430,26 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212';
             } catch (error) {
                 grid.innerHTML = '<div class="text-center text-red-500 py-10">Bir hata oluştu.</div>';
             }
+        }
+
+        // GALERİ LIGHTBOX FONKSİYONLARI (YENİ)
+        function openGallery(imageSrc) {
+            const modal = document.getElementById('galleryModal');
+            const img = document.getElementById('galleryImage');
+            img.src = imageSrc;
+            modal.classList.remove('hidden');
+            // Animasyon için küçük bir gecikme
+            setTimeout(() => img.classList.remove('scale-95'), 10);
+        }
+
+        function closeGallery() {
+            const modal = document.getElementById('galleryModal');
+            const img = document.getElementById('galleryImage');
+            img.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                img.src = '';
+            }, 300);
         }
 
         <?php if ($toast_data): ?>
