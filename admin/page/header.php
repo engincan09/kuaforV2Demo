@@ -52,7 +52,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <!-- Sidebar -->
         <aside class="w-64 bg-gray-800 flex flex-col border-r border-gray-700 shadow-2xl z-20">
             <div class="h-20 flex items-center justify-center border-b border-gray-700 bg-gray-800/50 backdrop-blur">
-                <h2 class="text-2xl font-bold text-yellow-500 tracking-widest">ELITE<span class="text-white">ADMIN</span></h2>
+                <h2 class="text-2xl font-bold text-yellow-500 tracking-widest">Yönetim<span class="text-white">Paneli</span></h2>
             </div>
             
             <nav class="flex-1 overflow-y-auto py-6 space-y-1 px-2">
