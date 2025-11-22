@@ -166,7 +166,7 @@ $secondary_color = getSetting('theme_color_secondary') ?: '#121212'; // Dark
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             <div class="flex items-center gap-2 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <?php if($site_fav): ?>
-                    <img src="<?= $site_fav ?>" class="w-10 h-10 rounded-full bg-gold-500 p-1 object-cover">
+                    <img src="<?= $site_fav ?>" class="w-10 h-10 rounded-full p-1 object-cover">
                 <?php else: ?>
                     <div class="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center text-black font-bold text-lg"><i class="fas fa-cut"></i></div>
                 <?php endif; ?>
