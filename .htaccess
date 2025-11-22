@@ -1,0 +1,18 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Eğer dosya veya klasör fiziksel olarak varsa direkt onu aç (Resimler, CSS vb. için)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # "admin" veya "admin/" isteğini "admin/page/index.php"ye yönlendir
+    RewriteRule ^admin/?$ admin/page/index.php [L]
+
+    # "admin/dosya.php" isteğini "admin/page/dosya.php"ye yönlendir
+    # (Sonsuz döngüye girmemesi için URL'de 'page' yoksa kuralı işlet)
+    RewriteCond %{REQUEST_URI} !^.*admin/page/.*$
+    RewriteRule ^admin/(.*)$ admin/page/$1 [L,QSA]
+</IfModule>
